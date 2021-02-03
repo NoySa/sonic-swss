@@ -36,6 +36,7 @@ BufferOrch *gBufferOrch;
 SwitchOrch *gSwitchOrch;
 Directory<Orch*> gDirectory;
 NatOrch *gNatOrch;
+TxMonitorOrch *gTxMonitorOrch;
 
 bool gIsNatSupported = false;
 
@@ -219,6 +220,7 @@ bool OrchDaemon::init()
 
     gNatOrch = new NatOrch(m_applDb, m_stateDb, nat_tables, gRouteOrch, gNeighOrch);
 
+
     /*
      * The order of the orch list is important for state restore of warm start and
      * the queued processing in m_toSync map after gPortsOrch->allPortsReady() is set.
@@ -228,6 +230,17 @@ bool OrchDaemon::init()
      * For cases when Orch has to process tables in specific order, like PortsOrch during warm start, it has to override Orch::doTask()
      */
     m_orchList = { gSwitchOrch, gCrmOrch, gPortsOrch, gBufferOrch, gIntfsOrch, gNeighOrch, gRouteOrch, copp_orch, tunnel_decap_orch, qos_orch, wm_orch, policer_orch, sflow_orch, debug_counter_orch};
+
+    /* Tx Monitor per port: */
+    SWSS_LOG_NOTICE("noysa Orch daemon");
+
+    TableConnector stateDbTxMonitor(m_stateDb, STATE_PORT_TX_STATE_TABLE_NAME);
+    TableConnector confDbTxMonitor(m_configDb, CFG_TX_MONITOR_TABLE_NAME);
+
+
+    gTxMonitorOrch = new TxMonitorOrch(confDbTxMonitor, stateDbTxMonitor);
+    m_orchList.push_back(gTxMonitorOrch);
+
 
     bool initialize_dtel = false;
     if (platform == BFN_PLATFORM_SUBSTRING || platform == VS_PLATFORM_SUBSTRING)
